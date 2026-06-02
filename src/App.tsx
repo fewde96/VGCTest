@@ -7,6 +7,7 @@ import {
 import { calcSpeed } from './lib/speed-calc'
 import { getSpriteUrl } from './lib/sprites'
 import { BASE_SPEED } from './lib/base-stats'
+import { DEFAULT_OPPONENTS } from './lib/default-opponents'
 import './App.css'
 
 /* ─────────── Types ─────────── */
@@ -198,7 +199,9 @@ const MEGA_STONE_MAP: Record<string, string> = {
   gaborite: 'garchomp-mega',
   garchompite: 'garchomp-mega',
   glimmorite: 'glimmora-mega',
+  glimmoranite: 'glimmora-mega',
   dragonitite: 'dragonite-mega',
+  dragoninite: 'dragonite-mega',
 }
 
 function getMegaForm(item: string | null): string | null {
@@ -262,7 +265,16 @@ function getEffectiveSpeed(set: PokemonSet, override: number | null): number | n
 function App() {
   const [state, setState] = useState<AppState>(() => {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return defaultState
+    if (!raw) {
+      // Load default opponents on first use
+      const opponents = DEFAULT_OPPONENTS.map((o) => ({
+        id: crypto.randomUUID(),
+        raw: o.raw,
+        set: parseSingleSet(o.raw),
+        speedOverride: null,
+      }))
+      return { ...defaultState, opponents }
+    }
     try {
       return { ...defaultState, ...JSON.parse(raw) }
     } catch {
