@@ -197,6 +197,8 @@ const MEGA_STONE_MAP: Record<string, string> = {
   audinite: 'audino-mega',
   gaborite: 'garchomp-mega',
   garchompite: 'garchomp-mega',
+  glimmorite: 'glimmora-mega',
+  dragonitite: 'dragonite-mega',
 }
 
 function getMegaForm(item: string | null): string | null {
@@ -210,6 +212,36 @@ function getMegaSpeed(set: PokemonSet): number | null {
   if (!megaKey) return null
   const spe = set.evs.spe ?? 0
   return calcSpeed(megaKey, spe, set.nature, set.level)
+}
+
+/** Abilities that double speed under certain conditions */
+const SPEED_DOUBLING_ABILITIES = new Set([
+  'sand rush', 'swift swim', 'chlorophyll', 'slush rush', 'unburden', 'surge surfer',
+])
+
+function hasSpeedDoublingAbility(set: PokemonSet): boolean {
+  if (!set.ability) return false
+  return SPEED_DOUBLING_ABILITIES.has(set.ability.toLowerCase())
+}
+
+function getAbilityBoostedSpeed(set: PokemonSet): number | null {
+  if (!hasSpeedDoublingAbility(set)) return null
+  const base = getEffectiveSpeed(set, null)
+  if (base == null) return null
+  return base * 2
+}
+
+/** Short label for the ability boost */
+function getAbilityBoostLabel(ability: string): string {
+  const map: Record<string, string> = {
+    'sand rush': '🏜️',
+    'swift swim': '🌧️',
+    'chlorophyll': '☀️',
+    'slush rush': '❄️',
+    'unburden': '🪶',
+    'surge surfer': '⚡',
+  }
+  return map[ability.toLowerCase()] ?? '⚡'
 }
 
 /** Check if calc text mentions a mega pokémon */
@@ -285,13 +317,15 @@ function App() {
 
   /* ─── Opponents management ─── */
   const addOpponent = () => {
+    const newId = crypto.randomUUID()
     setState((prev) => ({
       ...prev,
       opponents: [
         ...prev.opponents,
-        { id: crypto.randomUUID(), raw: '', set: null, speedOverride: null },
+        { id: newId, raw: '', set: null, speedOverride: null },
       ],
     }))
+    setEditingOpponentId(newId)
   }
 
   const updateOpponentRaw = (id: string, text: string) => {
@@ -330,6 +364,7 @@ function App() {
   const [matchupFilter, setMatchupFilter] = useState<string | null>(null)
   const [newDefCalc, setNewDefCalc] = useState('')
   const [newOffCalc, setNewOffCalc] = useState('')
+  const [editingOpponentId, setEditingOpponentId] = useState<string | null>(null)
 
   const addCalcEntry = (bucket: 'defensive' | 'offensive', raw: string) => {
     if (!state.selectedPokemonId || !raw.trim()) return
@@ -490,6 +525,8 @@ function App() {
     teamPlus1: false,
     oppTailwind: false,
     oppPlus1: false,
+    showAbilityBoost: true,
+    showMega: true,
   })
 
   const toggleSpeedMod = (key: keyof typeof speedMods) => {
@@ -514,13 +551,15 @@ function App() {
       state.team
         .map((m) => {
           const base = getEffectiveSpeed(m, null)
-          if (base == null) return { ...m, speed: null as number | null, megaSpeed: null as number | null }
+          if (base == null) return { ...m, speed: null as number | null, megaSpeed: null as number | null, abilitySpeed: null as number | null }
           const megaBase = getMegaSpeed(m)
           const speed = applyMod(base, speedMods.teamTailwind, speedMods.teamPlus1)
           const megaSpeed = megaBase != null ? applyMod(megaBase, speedMods.teamTailwind, speedMods.teamPlus1) : null
-          return { ...m, speed, megaSpeed }
+          const abilityBase = getAbilityBoostedSpeed(m)
+          const abilitySpeed = abilityBase != null ? applyMod(abilityBase, speedMods.teamTailwind, speedMods.teamPlus1) : null
+          return { ...m, speed, megaSpeed, abilitySpeed }
         })
-        .filter((m) => m.speed != null) as (PokemonSet & { speed: number; megaSpeed: number | null })[],
+        .filter((m) => m.speed != null) as (PokemonSet & { speed: number; megaSpeed: number | null; abilitySpeed: number | null })[],
     [state.team, speedMods.teamTailwind, speedMods.teamPlus1],
   )
 
@@ -530,17 +569,19 @@ function App() {
         .filter((o) => o.set != null)
         .map((o) => {
           const base = getEffectiveSpeed(o.set!, o.speedOverride)
-          if (base == null) return { ...o, speed: null as number | null, hasScarf: false }
+          if (base == null) return { ...o, speed: null as number | null, hasScarf: false, abilitySpeed: null as number | null }
           const hasScarf = isScarfItem(o.set!.item)
           const scarfSpeed = hasScarf ? Math.floor(base * 1.5) : base
-          return { ...o, speed: applyMod(scarfSpeed, speedMods.oppTailwind, speedMods.oppPlus1), hasScarf }
+          const abilityBase = getAbilityBoostedSpeed(o.set!)
+          const abilitySpeed = abilityBase != null ? applyMod(abilityBase, speedMods.oppTailwind, speedMods.oppPlus1) : null
+          return { ...o, speed: applyMod(scarfSpeed, speedMods.oppTailwind, speedMods.oppPlus1), hasScarf, abilitySpeed }
         })
-        .filter((o) => o.speed != null) as (OpponentEntry & { speed: number; hasScarf: boolean })[],
+        .filter((o) => o.speed != null) as (OpponentEntry & { speed: number; hasScarf: boolean; abilitySpeed: number | null })[],
     [state.opponents, speedMods.oppTailwind, speedMods.oppPlus1],
   )
 
   const opponentGroups = useMemo(() => {
-    const map = new Map<string, (OpponentEntry & { speed: number; hasScarf: boolean })[]>()
+    const map = new Map<string, (OpponentEntry & { speed: number; hasScarf: boolean; abilitySpeed: number | null })[]>()
     for (const o of opponentsWithSpeed) {
       const key = o.set!.species
       const arr = map.get(key) || []
@@ -554,14 +595,22 @@ function App() {
     const speeds: number[] = []
     for (const m of teamWithSpeed) {
       speeds.push(m.speed)
-      if (m.megaSpeed != null) speeds.push(m.megaSpeed)
+      if (speedMods.showMega && m.megaSpeed != null) speeds.push(m.megaSpeed)
+      if (speedMods.showAbilityBoost && m.abilitySpeed != null) speeds.push(m.abilitySpeed)
     }
-    for (const o of opponentsWithSpeed) speeds.push(o.speed)
+    for (const o of opponentsWithSpeed) {
+      speeds.push(o.speed)
+      if (speedMods.showAbilityBoost && o.abilitySpeed != null) speeds.push(o.abilitySpeed)
+    }
     return speeds
-  }, [teamWithSpeed, opponentsWithSpeed])
+  }, [teamWithSpeed, opponentsWithSpeed, speedMods.showMega, speedMods.showAbilityBoost])
 
-  const speedMin = allSpeeds.length > 0 ? Math.min(...allSpeeds) - 12 : 0
-  const speedMax = allSpeeds.length > 0 ? Math.max(...allSpeeds) + 12 : 100
+  const autoSpeedMin = allSpeeds.length > 0 ? Math.min(...allSpeeds) - 12 : 0
+  const autoSpeedMax = allSpeeds.length > 0 ? Math.max(...allSpeeds) + 12 : 100
+
+  const [speedRange, setSpeedRange] = useState<[number, number] | null>(null)
+  const speedMin = speedRange ? speedRange[0] : autoSpeedMin
+  const speedMax = speedRange ? speedRange[1] : autoSpeedMax
 
   return (
     <div className="app-shell">
@@ -667,82 +716,81 @@ function App() {
           </div>
         </div>
 
-        <div className="opponents-list">
+        <div className="opponents-grid">
           {state.opponents.map((opp) => {
             const baseSpeed = opp.set
               ? getEffectiveSpeed(opp.set, opp.speedOverride)
               : null
             const hasScarf = opp.set ? isScarfItem(opp.set.item) : false
             const speed = baseSpeed != null && hasScarf ? Math.floor(baseSpeed * 1.5) : baseSpeed
-            return (
-              <div className="opponent-entry" key={opp.id}>
-                <textarea
-                  className="opp-paste"
-                  value={opp.raw}
-                  onChange={(e) => updateOpponentRaw(opp.id, e.target.value)}
-                  placeholder={`Sneasler @ White Herb\nAbility: Unburden\nLevel: 50\nEVs: 2 HP / 32 Atk / 32 Spe\nJolly Nature`}
-                  rows={4}
-                />
-                <div className="opp-info">
-                  {opp.set ? (
-                    <>
-                      <img
-                        className="opp-sprite"
-                        src={getSpriteUrl(opp.set.species)}
-                        alt={opp.set.species}
-                      />
-                      <div className="opp-details">
-                        <strong>{opp.set.species}</strong>
-                        <span className="opp-meta">
-                          {opp.set.nature && `${opp.set.nature}`}
-                          {opp.set.evs.spe != null &&
-                            ` · ${opp.set.evs.spe} Spe`}
-                        </span>
-                        <span className="opp-speed">
-                          Speed: <b>{speed ?? '?'}</b>
-                          {hasScarf && <img className="scarf-icon" src="https://play.pokemonshowdown.com/sprites/itemicons/choice-scarf.png" alt="Scarf" />}
-                        </span>
-                        {speed === null && (
-                          <label className="opp-override">
-                            Override:
-                            <input
-                              type="number"
-                              min={1}
-                              value={opp.speedOverride ?? ''}
-                              onChange={(e) =>
-                                updateOpponentSpeedOverride(
-                                  opp.id,
-                                  e.target.value,
-                                )
-                              }
-                              placeholder="speed"
-                            />
-                          </label>
-                        )}
-                      </div>
-                    </>
-                  ) : (
-                    <span className="opp-placeholder">
-                      Incolla un set qui a sinistra
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    className="remove-btn"
-                    onClick={() => removeOpponent(opp.id)}
-                    title="Rimuovi"
-                  >
-                    ✕
-                  </button>
+            const isEditing = editingOpponentId === opp.id
+
+            if (isEditing) {
+              return (
+                <div className="opponent-edit-panel" key={opp.id}>
+                  <textarea
+                    className="opp-paste"
+                    value={opp.raw}
+                    onChange={(e) => updateOpponentRaw(opp.id, e.target.value)}
+                    placeholder={`Sneasler @ White Herb\nAbility: Unburden\nLevel: 50\nEVs: 2 HP / 32 Atk / 32 Spe\nJolly Nature`}
+                    rows={5}
+                  />
+                  <div className="opp-edit-info">
+                    {opp.set && (
+                      <span className="opp-speed">
+                        Speed: <b>{speed ?? '?'}</b>
+                        {hasScarf && <img className="scarf-icon" src="https://play.pokemonshowdown.com/sprites/itemicons/choice-scarf.png" alt="Scarf" />}
+                      </span>
+                    )}
+                    {speed === null && (
+                      <label className="opp-override">
+                        Override:
+                        <input
+                          type="number"
+                          min={1}
+                          value={opp.speedOverride ?? ''}
+                          onChange={(e) =>
+                            updateOpponentSpeedOverride(opp.id, e.target.value)
+                          }
+                          placeholder="speed"
+                        />
+                      </label>
+                    )}
+                  </div>
+                  <div className="opp-edit-actions">
+                    <button type="button" className="io-btn small" onClick={() => setEditingOpponentId(null)}>✓ Chiudi</button>
+                    <button type="button" className="remove-btn" onClick={() => { removeOpponent(opp.id); setEditingOpponentId(null) }}>✕ Rimuovi</button>
+                  </div>
                 </div>
+              )
+            }
+
+            return (
+              <div
+                className="opponent-tile"
+                key={opp.id}
+                title={opp.set ? `${opp.set.species} – ${opp.set.nature ?? ''} ${opp.set.evs.spe ?? 0} Spe – Speed: ${speed ?? '?'}` : 'Set vuoto'}
+                onClick={() => setEditingOpponentId(opp.id)}
+              >
+                {opp.set ? (
+                  <>
+                    <img
+                      className="opp-tile-sprite"
+                      src={getSpriteUrl(opp.set.species)}
+                      alt={opp.set.species}
+                    />
+                    <span className="opp-tile-speed">{speed ?? '?'}{hasScarf && '🧣'}</span>
+                  </>
+                ) : (
+                  <span className="opp-tile-empty">?</span>
+                )}
               </div>
             )
           })}
+          <div className="opponent-tile opp-tile-add" onClick={addOpponent} title="Aggiungi avversario">
+            <span className="opp-tile-plus">+</span>
+          </div>
         </div>
-
-        <button type="button" className="add-btn" onClick={addOpponent}>
-          + Aggiungi avversario
-        </button>
       </section>
 
       {/* ═══════ SECTION 3: Speed Chart ═══════ */}
@@ -783,7 +831,55 @@ function App() {
           >
             ⬆️ Avversari +1
           </button>
+          <span className="speed-mods-divider">|</span>
+          <button
+            type="button"
+            className={`mod-btn${speedMods.showAbilityBoost ? ' active' : ''}`}
+            onClick={() => toggleSpeedMod('showAbilityBoost')}
+          >
+            🪶 Abilità ×2
+          </button>
+          <button
+            type="button"
+            className={`mod-btn${speedMods.showMega ? ' active' : ''}`}
+            onClick={() => toggleSpeedMod('showMega')}
+          >
+            Ⓜ Mega
+          </button>
         </div>
+
+        {allSpeeds.length >= 2 && (
+          <div className="speed-range-control">
+            <label className="range-label">
+              Range: <b>{speedMin}</b> – <b>{speedMax}</b>
+            </label>
+            <div className="range-inputs">
+              <input
+                type="range"
+                min={autoSpeedMin - 20}
+                max={autoSpeedMax}
+                value={speedMin}
+                onChange={(e) => setSpeedRange([Number(e.target.value), speedMax])}
+              />
+              <input
+                type="range"
+                min={autoSpeedMin}
+                max={autoSpeedMax + 20}
+                value={speedMax}
+                onChange={(e) => setSpeedRange([speedMin, Number(e.target.value)])}
+              />
+            </div>
+            {speedRange && (
+              <button
+                type="button"
+                className="mod-btn"
+                onClick={() => setSpeedRange(null)}
+              >
+                Reset
+              </button>
+            )}
+          </div>
+        )}
 
         {allSpeeds.length < 2 ? (
           <p className="empty-note">
@@ -792,35 +888,8 @@ function App() {
           </p>
         ) : (
           <div className="speed-ruler-container">
-            {/* Vertical reference lines from team markers */}
-            <div className="vlines-layer">
-              {teamWithSpeed.map((m) => {
-                const pct =
-                  ((m.speed - speedMin) / (speedMax - speedMin)) * 100
-                return (
-                  <div
-                    key={`vline-${m.id}`}
-                    className="team-vline"
-                    style={{ left: `${pct}%` }}
-                  />
-                )
-              })}
-              {teamWithSpeed
-                .filter((m) => m.megaSpeed != null && m.megaSpeed !== m.speed)
-                .map((m) => {
-                  const pct =
-                    ((m.megaSpeed! - speedMin) / (speedMax - speedMin)) * 100
-                  return (
-                    <div
-                      key={`vline-mega-${m.id}`}
-                      className="team-vline mega-vline"
-                      style={{ left: `${pct}%` }}
-                    />
-                  )
-                })}
-            </div>
-
             {/* Axis */}
+            <div className="speed-chart-sticky-header">
             <div className="ruler-axis">
               <span className="ruler-label">{speedMin}</span>
               <div className="ruler-line" />
@@ -851,7 +920,7 @@ function App() {
                   )
                 })}
                 {/* Mega speed markers */}
-                {teamWithSpeed
+                {speedMods.showMega && teamWithSpeed
                   .filter((m) => m.megaSpeed != null && m.megaSpeed !== m.speed)
                   .map((m) => {
                     const megaForm = getMegaForm(m.item)!
@@ -873,8 +942,74 @@ function App() {
                       </div>
                     )
                   })}
+                {/* Ability-boosted speed markers */}
+                {speedMods.showAbilityBoost && teamWithSpeed
+                  .filter((m) => m.abilitySpeed != null && m.abilitySpeed !== m.speed)
+                  .map((m) => {
+                    const emoji = getAbilityBoostLabel(m.ability ?? '')
+                    const pct =
+                      ((m.abilitySpeed! - speedMin) / (speedMax - speedMin)) * 100
+                    return (
+                      <div
+                        key={`ability-${m.id}`}
+                        className="speed-marker team-marker ability-marker"
+                        style={{ left: `${pct}%` }}
+                        title={`${m.species} (${m.ability}): ${m.abilitySpeed}`}
+                      >
+                        <img
+                          className="marker-sprite-inline"
+                          src={getSpriteUrl(m.species)}
+                          alt={`${m.species} ${m.ability}`}
+                        />
+                        <span className="marker-speed-num">{m.abilitySpeed} {emoji}</span>
+                      </div>
+                    )
+                  })}
               </div>
             </div>
+            </div>{/* end sticky header */}
+
+            {/* Opponents with vertical reference lines */}
+            <div className="opponents-chart-area">
+              <div className="vlines-layer">
+                {teamWithSpeed.map((m) => {
+                  const pct =
+                    ((m.speed - speedMin) / (speedMax - speedMin)) * 100
+                  return (
+                    <div
+                      key={`vline-${m.id}`}
+                      className="team-vline"
+                      style={{ left: `${pct}%` }}
+                    />
+                  )
+                })}
+                {speedMods.showMega && teamWithSpeed
+                  .filter((m) => m.megaSpeed != null && m.megaSpeed !== m.speed)
+                  .map((m) => {
+                    const pct =
+                      ((m.megaSpeed! - speedMin) / (speedMax - speedMin)) * 100
+                    return (
+                      <div
+                        key={`vline-mega-${m.id}`}
+                        className="team-vline mega-vline"
+                        style={{ left: `${pct}%` }}
+                      />
+                    )
+                  })}
+                {speedMods.showAbilityBoost && teamWithSpeed
+                  .filter((m) => m.abilitySpeed != null && m.abilitySpeed !== m.speed)
+                  .map((m) => {
+                    const pct =
+                      ((m.abilitySpeed! - speedMin) / (speedMax - speedMin)) * 100
+                    return (
+                      <div
+                        key={`vline-ability-${m.id}`}
+                        className="team-vline ability-vline"
+                        style={{ left: `${pct}%` }}
+                      />
+                    )
+                  })}
+              </div>
 
             {/* Opponents grouped */}
             {Array.from(opponentGroups.entries()).map(([species, entries]) => {
@@ -908,7 +1043,13 @@ function App() {
                     {entries.map((entry) => {
                       const pct =
                         ((entry.speed - speedMin) / (speedMax - speedMin)) * 100
+                      const natureShort = entry.set?.nature
+                        ? entry.set.nature.slice(0, 3)
+                        : ''
                       const label = entry.set?.nature
+                        ? `${natureShort} ${entry.set.evs.spe ?? 0}`
+                        : `${entry.speed}`
+                      const fullLabel = entry.set?.nature
                         ? `${entry.set.nature} ${entry.set.evs.spe ?? 0} Spe`
                         : `${entry.speed}`
                       return (
@@ -916,7 +1057,7 @@ function App() {
                           key={entry.id}
                           className="speed-marker opp-marker"
                           style={{ left: `${pct}%` }}
-                          title={`${species} (${label}): ${entry.speed}`}
+                          title={`${species} (${fullLabel}): ${entry.speed}`}
                         >
                           <span className="marker-dot" />
                           <span className="marker-label">
@@ -930,10 +1071,34 @@ function App() {
                         </div>
                       )
                     })}
+                    {/* Ability-boosted opponent markers */}
+                    {speedMods.showAbilityBoost && entries
+                      .filter((e) => e.abilitySpeed != null && e.abilitySpeed !== e.speed)
+                      .map((entry) => {
+                        const pct =
+                          ((entry.abilitySpeed! - speedMin) / (speedMax - speedMin)) * 100
+                        const emoji = getAbilityBoostLabel(entry.set?.ability ?? '')
+                        return (
+                          <div
+                            key={`ability-${entry.id}`}
+                            className="speed-marker opp-marker ability-marker"
+                            style={{ left: `${pct}%` }}
+                            title={`${species} (${entry.set?.ability}): ${entry.abilitySpeed}`}
+                          >
+                            <span className="marker-dot ability-dot" />
+                            <span className="marker-label">
+                              {emoji}
+                              <br />
+                              <b>{entry.abilitySpeed}</b>
+                            </span>
+                          </div>
+                        )
+                      })}
                   </div>
                 </div>
               )
             })}
+            </div>{/* end opponents-chart-area */}
           </div>
         )}
       </section>

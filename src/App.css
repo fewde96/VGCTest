@@ -142,6 +142,19 @@ h1 {
   border-color: #c48fd4 !important;
 }
 
+.ability-marker .marker-speed-num {
+  color: #2e7d32;
+}
+
+.ability-dot {
+  background: #4caf50 !important;
+  border-color: #2e7d32 !important;
+}
+
+.ability-vline {
+  border-color: #81c784 !important;
+}
+
 .scarf-icon {
   width: 14px;
   height: 14px;
@@ -290,24 +303,84 @@ h1 {
 
 /* ─── Opponents Section ─── */
 
-.opponents-list {
+.opponents-grid {
   display: grid;
-  gap: 0.7rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
 }
 
-.opponent-entry {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.6rem;
+.opponent-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   border: 1px solid #e0d0c0;
+  border-radius: 12px;
+  padding: 0.4rem;
+  background: linear-gradient(170deg, #fff9f3, #ffffff);
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s;
+  min-height: 72px;
+}
+
+.opponent-tile:hover {
+  border-color: #d4a574;
+  box-shadow: 0 2px 8px rgba(180, 120, 60, 0.15);
+}
+
+.opp-tile-sprite {
+  width: 48px;
+  height: 48px;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.12));
+}
+
+.opp-tile-speed {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #8e4621;
+  margin-top: 0.1rem;
+}
+
+.opp-tile-empty {
+  font-size: 1.4rem;
+  color: #c0a080;
+  font-weight: 700;
+}
+
+.opp-tile-add {
+  border: 2px dashed #c9bba8;
+  background: #fffcf8;
+}
+
+.opp-tile-add:hover {
+  border-color: #1e527a;
+  background: #f0f8ff;
+}
+
+.opp-tile-plus {
+  font-size: 1.6rem;
+  color: #1e527a;
+  font-weight: 700;
+}
+
+/* ─── Opponent Edit Panel ─── */
+
+.opponent-edit-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.6rem;
+  border: 2px solid #d4a574;
   border-radius: 14px;
   padding: 0.7rem;
   background: linear-gradient(170deg, #fff9f3, #ffffff);
 }
 
-.opp-paste {
+.opponent-edit-panel .opp-paste {
+  grid-column: 1 / -1;
   width: 100%;
-  min-height: 80px;
+  min-height: 90px;
   resize: vertical;
   border: 1px solid #c9bba8;
   border-radius: 10px;
@@ -319,39 +392,22 @@ h1 {
   color: #2a1f10;
 }
 
-.opp-paste:focus {
+.opponent-edit-panel .opp-paste:focus {
   outline: 2px solid #d4a574;
   border-color: #b88a5c;
 }
 
-.opp-info {
+.opp-edit-info {
   display: flex;
   align-items: center;
   gap: 0.6rem;
 }
 
-.opp-sprite {
-  width: 56px;
-  height: 56px;
-  image-rendering: pixelated;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.12));
-  flex-shrink: 0;
-}
-
-.opp-details {
-  display: grid;
-  gap: 0.15rem;
-  flex: 1;
-}
-
-.opp-details strong {
-  font-size: 0.95rem;
-  color: #2a1f10;
-}
-
-.opp-meta {
-  font-size: 0.78rem;
-  color: #6b5a42;
+.opp-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
 }
 
 .opp-speed {
@@ -380,14 +436,7 @@ h1 {
   font-size: 0.8rem;
 }
 
-.opp-placeholder {
-  color: #a08060;
-  font-size: 0.82rem;
-  font-style: italic;
-}
-
 .remove-btn {
-  margin-left: auto;
   background: #f5e8e8;
   border: 1px solid #d4a0a0;
   color: #8b3535;
@@ -395,7 +444,6 @@ h1 {
   padding: 0.3rem 0.55rem;
   font-size: 0.85rem;
   cursor: pointer;
-  align-self: flex-start;
 }
 
 .remove-btn:hover {
@@ -455,6 +503,40 @@ h1 {
   border-color: #2b4258;
 }
 
+.speed-mods-divider {
+  color: #b0c6d9;
+  font-size: 0.9rem;
+  margin: 0 0.1rem;
+}
+
+.speed-range-control {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+.range-label {
+  font-size: 0.78rem;
+  color: #3e5d78;
+  white-space: nowrap;
+}
+
+.range-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 1;
+  max-width: 300px;
+}
+
+.range-inputs input[type="range"] {
+  width: 100%;
+  height: 4px;
+  accent-color: #2b4258;
+  cursor: pointer;
+}
+
 /* ─── Speed Ruler Chart ─── */
 
 .speed-ruler-container {
@@ -462,6 +544,26 @@ h1 {
   display: grid;
   gap: 0.6rem;
   position: relative;
+  max-height: 70vh;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+.speed-chart-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #ffffff;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid #e0e8f0;
+  margin-bottom: 0.3rem;
+}
+
+/* Opponents chart area (contains vlines + opponent rows) */
+.opponents-chart-area {
+  position: relative;
+  display: grid;
+  gap: 0.6rem;
 }
 
 /* Vertical dashed lines from team markers */
@@ -623,16 +725,16 @@ h1 {
   position: absolute;
   top: calc(100% + 4px);
   white-space: nowrap;
-  font-size: 0.66rem;
+  font-size: 0.58rem;
   color: #2b4258;
   text-align: center;
   pointer-events: none;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .marker-label b {
   display: block;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   color: #8e4621;
 }
 
@@ -943,8 +1045,8 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 
-  .opponent-entry {
-    grid-template-columns: 1fr;
+  .opponents-grid {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 

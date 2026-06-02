@@ -30,6 +30,7 @@ export const BASE_SPEED: Record<string, number> = {
   lapras: 60,
   snorlax: 30,
   dragonite: 80,
+  'dragonite-mega': 100,
   mewtwo: 130,
   'mewtwo-mega-x': 130,
   'mewtwo-mega-y': 140,
@@ -295,7 +296,7 @@ export const BASE_SPEED: Record<string, number> = {
   wyrdeer: 65,
 
   // Mega evos (additional)
-  aerodactyl: 150,
+  aerodactyl: 130,
   'aerodactyl-mega': 150,
   ampharos: 55,
   'ampharos-mega': 45,
@@ -375,6 +376,7 @@ export const BASE_SPEED: Record<string, number> = {
   cyclizar: 104,
   orthworm: 65,
   glimmora: 86,
+  'glimmora-mega': 101,
   houndstone: 68,
   revavroom: 90,
   pawmot: 105,
@@ -385,17 +387,25 @@ export const BASE_SPEED: Record<string, number> = {
   floette: 52,
   'floette-eternal': 92,
   'floette-mega': 102,
+  sinistcha: 70,
+  archaludon: 85,
 }
 
 /**
  * Normalize a species name to lookup key format (lowercase, trimmed).
  */
 export function toBaseStatsKey(species: string): string {
-  return species
+  let key = species
     .toLowerCase()
     .replace(/['']/g, '')
     .replace(/\s+/g, '-')
     .trim()
+  // Convert "mega-xyz" or "mega-xyz-x/y" to "xyz-mega" / "xyz-mega-x/y"
+  const megaMatch = key.match(/^mega-(.+?)(-[xy])?$/)
+  if (megaMatch) {
+    key = megaMatch[1] + '-mega' + (megaMatch[2] ?? '')
+  }
+  return key
 }
 
 /**

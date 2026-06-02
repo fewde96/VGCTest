@@ -10,12 +10,18 @@ const SHOWDOWN_SPRITE_BASE =
  * Examples: "Aerodactyl" → "aerodactyl", "Charizard-Mega-Y" → "charizard-megay"
  */
 function toSpriteId(species: string): string {
-  return species
+  let id = species
     .toLowerCase()
     .replace(/[^a-z0-9-]/g, '')
     .replace(/^basculegion-f$/, 'basculegion-f')
     .replace(/-mega-([xy])/, '-mega$1')
     .replace(/\s+/g, '')
+  // Convert "mega-xyz" prefix to "xyz-mega" suffix (Showdown format)
+  const megaMatch = id.match(/^mega-(.+?)(-[xy])?$/)
+  if (megaMatch) {
+    id = megaMatch[1] + '-mega' + (megaMatch[2] ?? '')
+  }
+  return id
 }
 
 export function getSpriteUrl(species: string): string {
