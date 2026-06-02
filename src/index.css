@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap');
+
+:root {
+  font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+  color: #20384d;
+  line-height: 1.4;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, #e9f4ff 0%, #f8fdff 38%, #fff8f1 100%),
+    repeating-linear-gradient(
+      120deg,
+      rgba(255, 255, 255, 0.35),
+      rgba(255, 255, 255, 0.35) 16px,
+      rgba(226, 239, 251, 0.4) 16px,
+      rgba(226, 239, 251, 0.4) 32px
+    );
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+h4,
+button {
+  font-family: 'Chakra Petch', 'Segoe UI', sans-serif;
+}
