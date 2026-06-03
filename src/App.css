@@ -126,12 +126,20 @@ h1 {
 .mega-badge {
   display: inline-block;
   font-size: 0.68rem;
-  color: #7b2d8b;
   font-weight: 600;
-  background: #f3e6f8;
   border-radius: 4px;
   padding: 0.1rem 0.4rem;
   margin-bottom: 0.2rem;
+}
+
+.mega-mine {
+  color: #1a7044;
+  background: #e0f5ea;
+}
+
+.mega-opp {
+  color: #8b3535;
+  background: #fce8e8;
 }
 
 .mega-marker .marker-speed-num {
@@ -305,8 +313,8 @@ h1 {
 
 .opponents-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.5rem;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.4rem;
 }
 
 .opponent-tile {
@@ -329,17 +337,32 @@ h1 {
 }
 
 .opp-tile-sprite {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   image-rendering: pixelated;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.12));
+}
+
+.opp-tile-meta {
+  font-size: 0.62rem;
+  color: #6b5a42;
+  margin-top: 0.05rem;
+  white-space: nowrap;
 }
 
 .opp-tile-speed {
   font-size: 0.72rem;
   font-weight: 700;
   color: #8e4621;
-  margin-top: 0.1rem;
+  margin-top: 0.05rem;
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.scarf-icon-sm {
+  width: 16px;
+  height: 16px;
 }
 
 .opp-tile-empty {
@@ -1046,7 +1069,7 @@ textarea:focus {
   }
 
   .opponents-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 

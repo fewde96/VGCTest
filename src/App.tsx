@@ -202,6 +202,7 @@ const MEGA_STONE_MAP: Record<string, string> = {
   glimmoranite: 'glimmora-mega',
   dragonitite: 'dragonite-mega',
   dragoninite: 'dragonite-mega',
+  froslassite: 'froslass-mega',
 }
 
 function getMegaForm(item: string | null): string | null {
@@ -247,9 +248,23 @@ function getAbilityBoostLabel(ability: string): string {
   return map[ability.toLowerCase()] ?? '⚡'
 }
 
-/** Check if calc text mentions a mega pokémon */
-function calcMentionsMega(text: string): boolean {
-  return /mega/i.test(text)
+/** Check which side of the calc mentions mega: 'mine', 'opp', or null */
+function getMegaSource(text: string, colorMode: 'defensive' | 'offensive'): 'mine' | 'opp' | null {
+  const parsed = parseCalcLine(text)
+  if (!parsed) return /mega/i.test(text) ? 'opp' : null
+  const attackerMega = /mega/i.test(parsed.attacker)
+  const defenderMega = /mega/i.test(parsed.defender)
+  if (!attackerMega && !defenderMega) return null
+  if (colorMode === 'defensive') {
+    // attacker = opponent, defender = mine
+    if (defenderMega) return 'mine'
+    if (attackerMega) return 'opp'
+  } else {
+    // attacker = mine, defender = opponent
+    if (attackerMega) return 'mine'
+    if (defenderMega) return 'opp'
+  }
+  return null
 }
 
 /* ─────────── Speed helper ─────────── */
@@ -563,15 +578,18 @@ function App() {
       state.team
         .map((m) => {
           const base = getEffectiveSpeed(m, null)
-          if (base == null) return { ...m, speed: null as number | null, megaSpeed: null as number | null, abilitySpeed: null as number | null }
+          if (base == null) return { ...m, speed: null as number | null, megaSpeed: null as number | null, abilitySpeed: null as number | null, hasScarf: false }
+          const hasScarf = isScarfItem(m.item)
           const megaBase = getMegaSpeed(m)
-          const speed = applyMod(base, speedMods.teamTailwind, speedMods.teamPlus1)
+          let speed = applyMod(base, speedMods.teamTailwind, speedMods.teamPlus1)
+          if (hasScarf) speed = Math.floor(speed * 1.5)
           const megaSpeed = megaBase != null ? applyMod(megaBase, speedMods.teamTailwind, speedMods.teamPlus1) : null
           const abilityBase = getAbilityBoostedSpeed(m)
-          const abilitySpeed = abilityBase != null ? applyMod(abilityBase, speedMods.teamTailwind, speedMods.teamPlus1) : null
-          return { ...m, speed, megaSpeed, abilitySpeed }
+          let abilitySpeed = abilityBase != null ? applyMod(abilityBase, speedMods.teamTailwind, speedMods.teamPlus1) : null
+          if (abilitySpeed != null && hasScarf) abilitySpeed = Math.floor(abilitySpeed * 1.5)
+          return { ...m, speed, megaSpeed, abilitySpeed, hasScarf }
         })
-        .filter((m) => m.speed != null) as (PokemonSet & { speed: number; megaSpeed: number | null; abilitySpeed: number | null })[],
+        .filter((m) => m.speed != null) as (PokemonSet & { speed: number; megaSpeed: number | null; abilitySpeed: number | null; hasScarf: boolean })[],
     [state.team, speedMods.teamTailwind, speedMods.teamPlus1],
   )
 
@@ -791,7 +809,8 @@ function App() {
                       src={getSpriteUrl(opp.set.species)}
                       alt={opp.set.species}
                     />
-                    <span className="opp-tile-speed">{speed ?? '?'}{hasScarf && '🧣'}</span>
+                    <span className="opp-tile-meta">{opp.set.nature ? opp.set.nature.slice(0, 3) : ''} {opp.set.evs.spe ?? 0} Spe</span>
+                    <span className="opp-tile-speed">{speed ?? '?'}{hasScarf && <img className="scarf-icon-sm" src="https://play.pokemonshowdown.com/sprites/itemicons/choice-scarf.png" alt="Scarf" />}</span>
                   </>
                 ) : (
                   <span className="opp-tile-empty">?</span>
@@ -927,7 +946,7 @@ function App() {
                         src={getSpriteUrl(m.species)}
                         alt={m.species}
                       />
-                      <span className="marker-speed-num">{m.speed}</span>
+                      <span className="marker-speed-num">{m.speed}{m.hasScarf && <img className="scarf-icon" src="https://play.pokemonshowdown.com/sprites/itemicons/choice-scarf.png" alt="Scarf" />}</span>
                     </div>
                   )
                 })}
@@ -1242,7 +1261,7 @@ function App() {
                         const oppSpecies = extractSpecies(parsed.attacker)
                         if (matchupFilter && oppSpecies !== matchupFilter) return null
                         const stale = isCalcStale(parsed, 'defensive', selectedPokemon)
-                        const isMega = calcMentionsMega(entry.raw)
+                        const megaSource = getMegaSource(entry.raw, 'defensive')
                         return (
                           <CalcCard
                             key={entry.id}
@@ -1250,7 +1269,7 @@ function App() {
                             colorMode="defensive"
                             oppSpecies={oppSpecies}
                             stale={stale}
-                            isMega={isMega}
+                            megaSource={megaSource}
                             onRemove={() => removeCalcEntry('defensive', entry.id)}
                           />
                         )
@@ -1305,7 +1324,7 @@ function App() {
                         const oppSpecies = extractSpecies(parsed.defender)
                         if (matchupFilter && oppSpecies !== matchupFilter) return null
                         const stale = isCalcStale(parsed, 'offensive', selectedPokemon)
-                        const isMega = calcMentionsMega(entry.raw)
+                        const megaSource = getMegaSource(entry.raw, 'offensive')
                         return (
                           <CalcCard
                             key={entry.id}
@@ -1313,7 +1332,7 @@ function App() {
                             colorMode="offensive"
                             oppSpecies={oppSpecies}
                             stale={stale}
-                            isMega={isMega}
+                            megaSource={megaSource}
                             onRemove={() => removeCalcEntry('offensive', entry.id)}
                           />
                         )
@@ -1338,7 +1357,7 @@ function CalcCard({
   colorMode,
   oppSpecies,
   stale,
-  isMega,
+  megaSource,
   onRemove,
 }: {
   parsed?: ParsedCalc
@@ -1346,7 +1365,7 @@ function CalcCard({
   colorMode?: 'defensive' | 'offensive'
   oppSpecies?: string | null
   stale?: boolean
-  isMega?: boolean
+  megaSource?: 'mine' | 'opp' | null
   onRemove: () => void
 }) {
   if (!parsed) {
@@ -1373,7 +1392,8 @@ function CalcCard({
   return (
     <div className={cardClass}>
       {stale && <span className="stale-badge" title="EVs cambiate — calc potenzialmente obsoleto">⚠️ obsoleto</span>}
-      {isMega && <span className="mega-badge">Ⓜ Mega</span>}
+      {megaSource === 'mine' && <span className="mega-badge mega-mine">Ⓜ Mega</span>}
+      {megaSource === 'opp' && <span className="mega-badge mega-opp">Ⓜ Mega</span>}
       <div className="calc-card-top">
         {oppSpecies && (
           <img

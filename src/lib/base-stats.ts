@@ -100,6 +100,7 @@ export const BASE_SPEED: Record<string, number> = {
   gallade: 80,
   'gallade-mega': 110,
   froslass: 110,
+  'froslass-mega': 120,
   rotom: 86,
   'rotom-wash': 86,
   'rotom-heat': 86,
