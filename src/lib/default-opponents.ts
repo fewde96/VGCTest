@@ -58,4 +58,9 @@ export const DEFAULT_OPPONENTS: { raw: string; set: null; speedOverride: null }[
   { raw: "Tyranitar-Mega @ Tyranitarite  \nAbility: Sand Stream  \nLevel: 50  \nEVs: 2 HP / 32 Atk / 32 Spe  \nAdamant Nature  \n- Rock Slide  \n- Knock Off  \n- Ice Punch  \n- Protect", set: null, speedOverride: null },
   { raw: "Tyranitar @ Tyranitarite  \nAbility: Sand Stream  \nLevel: 50  \nEVs: 32 Atk / 1 Def / 1 SpD / 32 Spe  \nJolly Nature  \n- Rock Slide  \n- Knock Off  \n- Dragon Dance  \n- Protect", set: null, speedOverride: null },
   { raw: "Tyranitar-Mega @ Tyranitarite  \nAbility: Sand Stream  \nLevel: 50  \nEVs: 32 Atk / 1 Def / 1 SpD / 32 Spe  \nJolly Nature  \n- Rock Slide  \n- Knock Off  \n- Dragon Dance  \n- Protect", set: null, speedOverride: null },
+  { raw: "Lopunny @ Lopunnite  \nAbility: Klutz  \nLevel: 50  \nEVs: 3 HP / 27 Atk / 4 Def / 32 Spe  \nJolly Nature  \n- Close Combat  \n- Giga Impact  \n- Fake Out  \n- Protect", set: null, speedOverride: null },
+  { raw: "Lopunny-Mega @ Lopunnite  \nAbility: Klutz  \nLevel: 50  \nEVs: 3 HP / 27 Atk / 4 Def / 32 Spe  \nJolly Nature  \n- Close Combat  \n- Giga Impact  \n- Fake Out  \n- Protect", set: null, speedOverride: null },
+  { raw: "Manectric-Mega @ Manectite  \nAbility: Lightning Rod  \nLevel: 50  \nEVs: 2 HP / 32 SpA / 32 Spe  \nTimid Nature  \n- Volt Switch  \n- Snarl  \n- Overheat  \n- Protect", set: null, speedOverride: null },
+  { raw: "Froslass-Mega @ Froslassite  \nAbility: Cursed Body  \nLevel: 50  \nEVs: 32 HP / 1 Def / 14 SpA / 1 SpD / 18 Spe  \nTimid Nature  \n- Blizzard  \n- Protect  \n- Shadow Ball  \n- Weather Ball", set: null, speedOverride: null },
+  { raw: "Froslass-Mega @ Froslassite  \nAbility: Cursed Body  \nLevel: 50  \nEVs: 12 HP / 1 Def / 20 SpA / 1 SpD / 32 Spe  \nModest Nature  \n- Blizzard  \n- Shadow Ball  \n- Aurora Veil  \n- Protect", set: null, speedOverride: null },
 ]
